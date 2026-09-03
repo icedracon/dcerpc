@@ -1,6 +1,6 @@
 [package]
 name = "dcerpc"
-version = "0.2.8"
+version = "0.2.9"
 edition = "2021"
 authors = ["zevs"]
 rust-version = "1.74"
@@ -14,7 +14,9 @@ keywords = ["dcerpc", "msrpc", "ndr", "samr", "windows"]
 categories = ["network-programming", "parser-implementations", "os::windows-apis", "authentication"]
 
 [dependencies]
-ms-ndr = { path = "../ms-ndr", version = "0.1.2" }
+# Keep dcerpc 0.2.8 on the published 0.1 wire runtime while NDRForge
+# stabilizes generated output against ms-ndr 0.1.3.
+ms-ndr = "=0.1.2"
 ntlmssp = "0.1"
 smb2-client = "0.2"
 windows-sddl = "0.1"
