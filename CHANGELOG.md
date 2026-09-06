@@ -9,6 +9,27 @@ project adheres to [SemVer](https://semver.org/spec/v2.0.0.html).
 
 Nothing pending.
 
+## [0.2.10] — 2026-09-06
+
+### Documentation
+
+- README bumped 0.2.8 → 0.2.9 (was stale after 0.2.9 shipped) and now
+  0.2.10; "What's new in 0.2.8" section split so 0.2.9's `NetrShareEnum`
+  addition appears alongside prior history.
+- Qualify the "live-validated" bullet: it excludes TSCH
+  `SchRpcRegisterTask`, which remains experimental
+  (`nca_s_fault_ndr` on Server 2025). The caveat was already documented
+  four bullets down; the top-line claim now points to it inline.
+
+No code changes.
+
+## [0.2.9] — 2026-08-31
+
+### Added
+
+- `srvsvc::NetrShareEnum` (opnum 15, `SHARE_INFO_1`) with the same
+  allocation-bound discipline as the existing `NetSessionEnum`.
+
 ## [0.2.8] — 2026-08-27
 
 ### Security

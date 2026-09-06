@@ -1,6 +1,6 @@
 [package]
 name = "dcerpc"
-version = "0.2.9"
+version = "0.2.10"
 edition = "2021"
 authors = ["zevs"]
 rust-version = "1.74"
