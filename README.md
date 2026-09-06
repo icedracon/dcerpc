@@ -17,11 +17,16 @@ Windows domain, static-linkable, one binary.
 
 ## Status
 
-**`0.2.8`** — actively developed. Part of the
+**`0.2.9`** — actively developed. Part of the
 [icedracon Rust offensive AD ecosystem](https://github.com/icedracon) and dogfooded by
 [`adhammer`](https://crates.io/crates/adhammer).
 
-### What's new in 0.2.8
+### What's new in 0.2.9
+
+- `srvsvc::NetrShareEnum` (opnum 15, `SHARE_INFO_1`) with the same allocation-bound
+  discipline as the existing `NetSessionEnum`.
+
+### 0.2.8
 
 - Strict PDU, BIND_ACK, presentation-context, call-ID and authenticated security-trailer
   validation for hostile or malformed RPC peers.
@@ -118,7 +123,8 @@ that owns the pipe/transport.
 - ✅ Full RPC bind with `PKT_PRIVACY` (NTLMSSP sign+seal) over both TCP and SMB named pipes.
 - ✅ EPM `ept_map` to resolve dynamic ports.
 - ✅ Interfaces above are byte-tested against protocol specs and live-validated against
-  fully-patched Windows Server 2022 / 2025 lab DCs.
+  fully-patched Windows Server 2022 / 2025 lab DCs — **except TSCH `SchRpcRegisterTask`**,
+  which stays experimental (`nca_s_fault_ndr` on Server 2025; see the caveat below).
 - ✅ DCOM/WMI activation → `Win32_Process.Create` with pass-the-hash support.
 - ⚠ The in-crate `drsuapi` implementation is deprecated — new code should depend on
   [`ms-drsr`](https://crates.io/crates/ms-drsr) directly. Will be removed in `0.4.0`.
