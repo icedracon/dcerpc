@@ -7,6 +7,22 @@ project adheres to [SemVer](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.2.11] — 2026-09-19
+
+### Fixed
+
+- **Sealed FAULT with empty `auth_value` is now propagated as `RpcError::Fault(status)`
+  instead of a misleading `sealed response carried an empty auth_value` protocol error.**
+  Windows Server 2019+ Task Scheduler responds to a sealed `SchRpcRegisterTask` failure
+  with a `FAULT` PDU carrying only the fault_status field (auth_length=0, no
+  sec_trailer, no auth_value) — legitimate DCE/RPC per C706 §12.6.3.9. Pre-fix, adhammer's
+  `attack atexec` verb surfaced the misleading protocol error and never learned the
+  real HRESULT. Post-fix, the FAULT flows through to the caller.
+  Fix in `parse_sealed_response_any` (allow empty auth_value for FAULT) and
+  `parse_sealed_response_fragment` (skip sec_trailer checks on fault-only frames),
+  plus a short-circuit in `transport.rs`'s sealed-read loop so we do not try to
+  unseal an empty payload. One regression test seeded from the wire shape.
+
 Nothing pending.
 
 ## [0.2.10] — 2026-09-06

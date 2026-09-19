@@ -769,6 +769,23 @@ fn parse_sealed_response_any(
     };
 
     let auth_length = h.auth_length as usize;
+    // A FAULT PDU carrying only the fault_status field can legitimately arrive with
+    // auth_length=0 — the server dropped the sealed reply because it stopped at fault time
+    // and did not encrypt anything (observed on Windows Server 2019+ Task Scheduler
+    // SchRpcRegisterTask). Return a fragment describing the fault so the transport layer
+    // can propagate `RpcError::Fault(status)` instead of a misleading protocol error.
+    if auth_length == 0 && matches!(h.ptype, ptype::FAULT) {
+        return Ok(SealedResponseFragment {
+            pfc_flags: h.pfc_flags,
+            frag_length: fragment.len(),
+            stub_start,
+            fault_status,
+            signed_pdu: fragment,
+            sealed_stub: &[],
+            auth_value: &[],
+            pad_len: 0,
+        });
+    }
     if auth_length == 0 {
         return Err(RpcError::Protocol(
             "sealed response carried an empty auth_value".into(),
@@ -825,6 +842,12 @@ pub fn parse_sealed_response_fragment(
     expected_auth_length: usize,
 ) -> Result<SealedResponseFragment<'_>> {
     let parsed = parse_sealed_response_any(buf, Some(expected_call_id), stub_start)?;
+    // A FAULT with empty auth_value carries no sec_trailer — the fault_status is the
+    // payload. Skip the auth-type / auth-level / auth-context-id checks; those live in
+    // the sec_trailer that this PDU shape simply doesn't have.
+    if parsed.auth_value.is_empty() && parsed.fault_status.is_some() {
+        return Ok(parsed);
+    }
     let sec_trailer_start = parsed.signed_pdu.len() - 8;
     let trailer = &parsed.signed_pdu[sec_trailer_start..];
     if trailer[0] != expected_auth_type {
@@ -1201,6 +1224,27 @@ mod tests {
         let parsed = parse_sealed_response_fragment(&fault, 7, 24, RPC_C_AUTHN_WINNT, 16).unwrap();
         assert_eq!(parsed.stub_start, 32);
         assert_eq!(parsed.fault_status, Some(0xDEAD_BEEF));
+        assert!(parsed.sealed_stub.is_empty());
+    }
+
+    #[test]
+    fn fault_with_empty_auth_value_is_propagated_not_rejected() {
+        // Windows Server 2019+ Task Scheduler responds to a sealed SchRpcRegisterTask
+        // failure with a FAULT PDU carrying only the fault_status (auth_length=0, no
+        // sec_trailer, no auth_value). Pre-fix, dcerpc bailed with a misleading
+        // "sealed response carried an empty auth_value" protocol error and callers
+        // never learned the real HRESULT — `attack atexec` in adhammer surfaced this
+        // gap. Post-fix, the FAULT flows through with the fault_status intact.
+        let mut fault = header_auth(ptype::FAULT, 32, 0, 7);
+        fault.extend_from_slice(&0u32.to_le_bytes()); // alloc_hint
+        fault.extend_from_slice(&0u16.to_le_bytes()); // p_cont_id
+        fault.extend_from_slice(&[0, 0]); // cancel_count, reserved
+        fault.extend_from_slice(&0xC00000ACu32.to_le_bytes()); // status = STATUS_PIPE_BUSY-ish
+        fault.extend_from_slice(&[0u8; 4]); // reserved2
+        let parsed = parse_sealed_response_fragment(&fault, 7, 24, RPC_C_AUTHN_WINNT, 16)
+            .expect("FAULT with auth_length=0 must be structurally accepted");
+        assert_eq!(parsed.fault_status, Some(0xC00000AC));
+        assert!(parsed.auth_value.is_empty());
         assert!(parsed.sealed_stub.is_empty());
     }
 

@@ -470,6 +470,15 @@ impl RpcTcp {
                 auth_value_len,
             )?;
             budget.observe(parsed.frag_length, parsed.pfc_flags)?;
+            // Short-circuit fault PDUs that arrived without any sealed payload — no
+            // ciphertext to unseal. See `parse_sealed_response_any`: a FAULT with
+            // auth_length=0 is legitimate (Server 2019+ Task Scheduler emits it on
+            // SchRpcRegisterTask errors).
+            if let Some(status) = parsed.fault_status {
+                if parsed.auth_value.is_empty() && parsed.sealed_stub.is_empty() {
+                    return Err(RpcError::Fault(status));
+                }
+            }
             let sealer = self
                 .krb_seal
                 .as_mut()
